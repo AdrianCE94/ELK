@@ -1,0 +1,56 @@
+############################
+# Dashboards + Kibana setup
+############################
+setup.dashboards:
+  enabled: true
+
+setup.kibana:
+  host: "${KIBANA_HOSTS}"
+  protocol: "https"
+  username: "${ELASTIC_USER}"
+  password: "${ELASTIC_PASSWORD}"
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
+
+###################
+# Audit modules
+###################
+auditbeat.modules:
+  - module: file_integrity
+    paths:
+      - /var/log/nginx
+
+  - module: system
+    datasets:
+      - package
+      - host
+    period: 1m
+
+#########################
+# Procesadores genéricos
+#########################
+processors:
+  - add_cloud_metadata: ~
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+
+#########################
+# Salida a Elasticsearch
+#########################
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
+
+##########
+# Logging
+##########
+logging:
+  level: info
+  to_files: false
+  to_stderr: true
+  selectors: ['*']

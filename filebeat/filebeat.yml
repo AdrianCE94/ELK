@@ -1,8 +1,14 @@
+############################
+# Módulos (formato nuevo)
+############################
 filebeat.config:
   modules:
     path: ${path.config}/modules.d/*.yml
     reload.enabled: false
 
+############################
+# Autodiscover de Docker
+############################
 filebeat.autodiscover:
   providers:
     - type: docker
@@ -19,29 +25,48 @@ filebeat.modules:
       enabled: true
       var.paths: ["/var/log/nginx/error.log"]
 
+############################
+# Procesadores
+############################
 processors:
   - add_docker_metadata:
       host: "unix:///var/run/docker.sock"
   - add_host_metadata:
       when.not.regexp:
         system.os.platform: windows
+  - add_cloud_metadata: ~
+
+############################
+# Dashboards + Kibana
+############################
+setup.dashboards:
+  enabled: true
 
 setup.kibana:
   host: "${KIBANA_HOSTS}"
-  ssl.enabled: true
-  ssl.certificate_authorities: ["${CA_CERT}"]
+  protocol: "https"
+  username: "${ELASTIC_USER}"
+  password: "${ELASTIC_PASSWORD}"
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
 
+############################
+# Salida a Elasticsearch
+############################
 output.elasticsearch:
   hosts: ["${ELASTIC_HOSTS}"]
   username: "${ELASTIC_USER}"
   password: "${ELASTIC_PASSWORD}"
-  ssl.enabled: true
-  ssl.certificate_authorities: ["${CA_CERT}"]
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
 
-logging.level: info
-logging.to_files: true
-logging.files:
-  path: /var/log/filebeat
-  name: filebeat
-  keepfiles: 7
-  permissions: 0644
+############################
+# Logging
+############################
+logging:
+  level: info
+  to_files: false
+  to_stderr: true
+  selectors: ['*']

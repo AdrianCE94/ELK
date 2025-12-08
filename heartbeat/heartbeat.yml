@@ -1,0 +1,60 @@
+############################
+# Dashboards de Heartbeat
+############################
+setup.dashboards:
+  enabled: false
+
+setup.kibana:
+  host: "${KIBANA_HOSTS}"
+  protocol: "https"
+  username: "${ELASTIC_USER}"
+  password: "${ELASTIC_PASSWORD}"
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
+
+###################
+# Monitors
+###################
+heartbeat.monitors:
+  # Monitor HTTP de Nginx
+  - type: http
+    id: nginx-http-monitor
+    name: "Nginx HTTP Monitor"
+    urls: ["http://nginx-app:80"]
+    schedule: '@every 10s'
+
+  # Monitor ICMP de Nginx
+  - type: icmp
+    id: nginx-icmp-monitor
+    name: "Nginx ICMP Monitor"
+    hosts: ["nginx-app"]
+    schedule: '@every 10s'
+
+#########################
+# Procesadores genéricos
+#########################
+processors:
+  - add_cloud_metadata: ~
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+
+#########################
+# Salida a Elasticsearch
+#########################
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl:
+    enabled: true
+    certificate_authorities: ["${CA_CERT}"]
+
+##########
+# Logging
+##########
+logging:
+  level: info
+  to_files: false
+  to_stderr: true
+  selectors: ['*']

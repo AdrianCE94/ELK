@@ -1,5 +1,3 @@
-version: "2.2"
-
 services:
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
@@ -55,6 +53,8 @@ services:
       interval: 1s
       timeout: 5s
       retries: 120
+    networks:
+      - elastic_network
 
   es01:
     depends_on:
@@ -150,9 +150,115 @@ services:
     networks:
       - elastic_network
 
+  # Servicio de metricbeat para métricas del sistema
+  metricbeat01:
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+    user: root
+    volumes:
+      - certs:/usr/share/metricbeat/certs
+      - metricbeatdata01:/usr/share/metricbeat/data
+      - "./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro"
+      - "/proc:/hostfs/proc:ro"
+      - "/:/hostfs:ro"
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - KIBANA_HOSTS=https://kibana:5601
+      - CA_CERT=certs/ca/ca.crt
+    command: ["metricbeat", "-e", "--strict.perms=false"]
+    networks:
+      - elastic_network
+
+  # Servicio de packetbeat para monitorear tráfico de red
+  packetbeat01:
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/beats/packetbeat:${STACK_VERSION}
+    user: root
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - certs:/usr/share/packetbeat/certs
+      - packetbeatdata01:/usr/share/packetbeat/data
+      - "./packetbeat/packetbeat.yml:/usr/share/packetbeat/packetbeat.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://localhost:9200
+      - KIBANA_HOSTS=https://localhost:5601
+      - CA_CERT=certs/ca/ca.crt
+    command: ["packetbeat", "-e", "--strict.perms=false"]
+    network_mode: host
+
+  # Servicio de auditbeat para auditoría del sistema
+  auditbeat01:
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/beats/auditbeat:${STACK_VERSION}
+    user: root
+    cap_add:
+      - AUDIT_CONTROL
+    volumes:
+      - certs:/usr/share/auditbeat/certs
+      - auditbeatdata01:/usr/share/auditbeat/data
+      - nginx-data:/var/log/nginx:ro
+      - "./auditbeat/auditbeat.yml:/usr/share/auditbeat/auditbeat.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - KIBANA_HOSTS=https://kibana:5601
+      - CA_CERT=certs/ca/ca.crt
+    command: ["auditbeat", "-e", "--strict.perms=false"]
+    networks:
+      - elastic_network
+
+  # Servicio de heartbeat para monitorear disponibilidad
+  heartbeat01:
+    depends_on:
+      es01:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    image: docker.elastic.co/beats/heartbeat:${STACK_VERSION}
+    user: root
+    volumes:
+      - certs:/usr/share/heartbeat/certs
+      - heartbeatdata01:/usr/share/heartbeat/data
+      - "./heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro"
+    environment:
+      - ELASTIC_USER=elastic
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - KIBANA_HOSTS=https://kibana:5601
+      - CA_CERT=certs/ca/ca.crt
+    command: ["heartbeat", "-e", "--strict.perms=false"]
+    networks:
+      - elastic_network
+
+  # Servicio de filebeat para monitorear logs de Nginx
   filebeat01:
     depends_on:
       es01:
+        condition: service_healthy
+      kibana:
         condition: service_healthy
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
     user: root
@@ -160,16 +266,16 @@ services:
       - certs:/usr/share/filebeat/certs
       - filebeatdata01:/usr/share/filebeat/data
       - nginx-data:/var/log/nginx:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - "./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
     environment:
-      - KIBANA_HOSTS=https://kibana:5601
-      - ELASTIC_HOSTS=https://es01:9200
       - ELASTIC_USER=elastic
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_HOSTS=https://es01:9200
+      - KIBANA_HOSTS=https://kibana:5601
       - CA_CERT=certs/ca/ca.crt
-    command:
-      - --strict.perms=false
+    command: ["filebeat", "-e", "--strict.perms=false"]
     networks:
       - elastic_network
 
@@ -183,6 +289,14 @@ volumes:
   nginx-data:
     driver: local
   filebeatdata01:
+    driver: local
+  metricbeatdata01:
+    driver: local
+  packetbeatdata01:
+    driver: local
+  auditbeatdata01:
+    driver: local
+  heartbeatdata01:
     driver: local
 
 networks:
