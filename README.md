@@ -126,6 +126,10 @@ ELK/
 │   └── auditbeat.yml           # Configuración de Auditbeat
 ├── heartbeat/
 │   └── heartbeat.yml           # Configuración de Heartbeat
+├── scripts/                     # Scripts de prueba para generar tráfico
+│   ├── test-nginx-traffic.sh   # Script Bash (Linux/Mac)
+│   ├── test-nginx-traffic.ps1  # Script PowerShell (Windows)
+│   └── README.md               # Documentación de scripts
 └── certs/                       # Certificados autofirmados (auto-generados)
     ├── ca/
     ├── es01/
@@ -334,6 +338,30 @@ curl http://localhost:8080/nginx-status
 ```
 
 ### 5. Generar tráfico de prueba
+
+#### Usando scripts automatizados (Recomendado)
+
+**Linux/Mac:**
+```bash
+cd scripts
+chmod +x test-nginx-traffic.sh
+./test-nginx-traffic.sh 500 20  # 500 peticiones con 20 concurrentes
+```
+
+**Windows (PowerShell):**
+```powershell
+cd scripts
+.\test-nginx-traffic.ps1 -Requests 500 -Concurrency 20
+```
+
+Los scripts generan automáticamente:
+- ✅ Peticiones HTTP exitosas (200 OK)
+- ✅ Errores 404 para pruebas
+- ✅ Información detallada del progreso
+
+Ver `scripts/README.md` para más opciones.
+
+#### Manualmente con curl
 
 ```bash
 # Genera algunos logs en Nginx
